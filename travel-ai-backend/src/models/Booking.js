@@ -1,3 +1,4 @@
+// travel-ai-backend/src/models/Booking.js - Update the reference
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
@@ -8,7 +9,7 @@ const bookingSchema = new mongoose.Schema({
   },
   itinerary_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Itinerary',
+    ref: 'TripItinerary', // Changed reference
     required: true
   },
   booking_type: {

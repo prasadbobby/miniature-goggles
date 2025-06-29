@@ -1,37 +1,59 @@
-const Itinerary = require('../models/Itinerary');
+// travel-ai-backend/src/controllers/itineraryController.js
+const TripItinerary = require('../models/TripItinerary'); // Changed to new model
 const aiService = require('../services/aiService');
 const logger = require('../utils/logger');
 
 class ItineraryController {
   async generateItinerary(req, res) {
     try {
-      const { destination, startDate, endDate, totalBudget, travelers, preferences } = req.body;
+      const { source, destination, startDate, endDate, totalBudget, travelers, preferences } = req.body;
       
+      // Validate required fields
+      if (!source || !destination || !startDate || !endDate || !totalBudget || !travelers) {
+        return res.status(400).json({
+          message: 'Missing required fields',
+          required: ['source', 'destination', 'startDate', 'endDate', 'totalBudget', 'travelers'],
+          received: { source, destination, startDate, endDate, totalBudget, travelers }
+        });
+      }
+
       // Calculate total days
       const start = new Date(startDate);
       const end = new Date(endDate);
       const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
 
+      if (totalDays <= 0) {
+        return res.status(400).json({
+          message: 'Invalid date range',
+          details: 'End date must be after start date'
+        });
+      }
+
       const tripData = {
-        destination,
+        source: source.trim(),
+        destination: destination.trim(),
         startDate,
         endDate,
         totalDays,
         totalBudget,
-        travelers: travelers || 1,
-        preferences: { ...req.user.preferences, ...preferences }
+        travelers,
+        preferences: preferences || {}
       };
+
+      logger.info('Generating itinerary with data:', tripData);
 
       // Generate itinerary using AI
       const aiGeneratedData = await aiService.generateItinerary(tripData);
 
-      // Create and save itinerary
-      const itinerary = new Itinerary({
+      // Create and save itinerary with new model
+      const itinerary = new TripItinerary({
         user_id: req.user._id,
         ...aiGeneratedData
       });
 
       await itinerary.save();
+
+      logger.info('Itinerary saved successfully:', itinerary._id);
 
       res.status(201).json({
         message: 'Itinerary generated successfully',
@@ -55,12 +77,12 @@ class ItineraryController {
         query.status = status;
       }
 
-      const itineraries = await Itinerary.find(query)
+      const itineraries = await TripItinerary.find(query)
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
 
-      const total = await Itinerary.countDocuments(query);
+      const total = await TripItinerary.countDocuments(query);
 
       res.json({
         itineraries,
@@ -76,7 +98,7 @@ class ItineraryController {
 
   async getItinerary(req, res) {
     try {
-      const itinerary = await Itinerary.findOne({
+      const itinerary = await TripItinerary.findOne({
         _id: req.params.id,
         user_id: req.user._id
       });
@@ -94,7 +116,7 @@ class ItineraryController {
 
   async updateItinerary(req, res) {
     try {
-      const itinerary = await Itinerary.findOneAndUpdate(
+      const itinerary = await TripItinerary.findOneAndUpdate(
         { _id: req.params.id, user_id: req.user._id },
         req.body,
         { new: true, runValidators: true }
@@ -116,7 +138,7 @@ class ItineraryController {
 
   async deleteItinerary(req, res) {
     try {
-      const itinerary = await Itinerary.findOneAndDelete({
+      const itinerary = await TripItinerary.findOneAndDelete({
         _id: req.params.id,
         user_id: req.user._id
       });
@@ -136,7 +158,7 @@ class ItineraryController {
     try {
       const { newBudget } = req.body;
       
-      const itinerary = await Itinerary.findOne({
+      const itinerary = await TripItinerary.findOne({
         _id: req.params.id,
         user_id: req.user._id
       });
