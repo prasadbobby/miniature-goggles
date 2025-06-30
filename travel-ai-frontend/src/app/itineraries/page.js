@@ -102,6 +102,68 @@ export default function ItinerariesPage() {
     }
   };
 
+  const calculateTripProgress = (itinerary) => {
+    const now = new Date();
+    const startDate = new Date(itinerary.trip_details.start_date);
+    const endDate = new Date(itinerary.trip_details.end_date);
+    
+    // If trip hasn't started yet
+    if (now < startDate) {
+      const daysUntilTrip = Math.ceil((startDate - now) / (1000 * 60 * 60 * 24));
+      if (daysUntilTrip <= 30) {
+        return { percentage: 75, label: `Starts in ${daysUntilTrip} days`, color: 'bg-blue-500' };
+      } else if (daysUntilTrip <= 60) {
+        return { percentage: 50, label: `Starts in ${daysUntilTrip} days`, color: 'bg-yellow-500' };
+      } else {
+        return { percentage: 25, label: `Starts in ${daysUntilTrip} days`, color: 'bg-gray-500' };
+      }
+    }
+    
+    // If trip is currently happening
+    if (now >= startDate && now <= endDate) {
+      const totalDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+      const daysPassed = (now - startDate) / (1000 * 60 * 60 * 24);
+      const percentage = Math.min(Math.round((daysPassed / totalDays) * 100), 100);
+      return { percentage, label: 'Trip in progress', color: 'bg-green-500' };
+    }
+    
+    // If trip is completed
+    const daysAgo = Math.ceil((now - endDate) / (1000 * 60 * 60 * 24));
+    return { percentage: 100, label: `Completed ${daysAgo} days ago`, color: 'bg-purple-500' };
+  };
+
+  const getTripStatus = (itinerary) => {
+    const now = new Date();
+    const startDate = new Date(itinerary.trip_details.start_date);
+    const endDate = new Date(itinerary.trip_details.end_date);
+    
+    if (itinerary.status === 'cancelled') return 'cancelled';
+    if (now < startDate) return 'confirmed';
+    if (now >= startDate && now <= endDate) return 'in_progress';
+    if (now > endDate) return 'completed';
+    return itinerary.status;
+  };
+
+  const getTripTypeLabel = (itinerary) => {
+    const now = new Date();
+    const startDate = new Date(itinerary.trip_details.start_date);
+    const endDate = new Date(itinerary.trip_details.end_date);
+    const totalDays = calculateDays(startDate, endDate);
+    
+    if (now < startDate) {
+      const daysUntilTrip = Math.ceil((startDate - now) / (1000 * 60 * 60 * 24));
+      if (daysUntilTrip <= 7) return 'Upcoming Soon';
+      if (daysUntilTrip <= 30) return 'Upcoming';
+      return 'Planned';
+    }
+    
+    if (now >= startDate && now <= endDate) {
+      return 'Active Trip';
+    }
+    
+    return 'Past Trip';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -187,113 +249,119 @@ export default function ItinerariesPage() {
         ) : filteredItineraries.length > 0 ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {filteredItineraries.map((itinerary, index) => (
-                <div key={index} className="card group hover:shadow-lg transition-all duration-300">
-                  {/* Card Header */}
-                  <div className="relative h-48 bg-gradient-to-br from-primary-500 to-primary-700 rounded-t-xl">
-                    <div className="absolute inset-0 bg-black/20 rounded-t-xl"></div>
-                    <div className="absolute top-4 left-4 right-4">
-                      <div className="flex items-center justify-between">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(itinerary.status)}`}>
-                          {getStatusIcon(itinerary.status)} {itinerary.status}
-                        </span>
-                        <div className="flex space-x-1">
-                          <Link
-                            href={`/itineraries/${itinerary._id}`}
-                            className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
-                          >
-                            <EyeIcon className="h-4 w-4 text-white" />
-                          </Link>
-                          <Link
-                            href={`/itineraries/${itinerary._id}/edit`}
-                            className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
-                          >
-                            <PencilIcon className="h-4 w-4 text-white" />
-                          </Link>
-                          <button
-                            onClick={() => {
-                              setSelectedItinerary(itinerary);
-                              setShowDeleteModal(true);
-                            }}
-                            className="p-2 bg-white/20 rounded-lg hover:bg-red-500/80 transition-colors"
-                          >
-                            <TrashIcon className="h-4 w-4 text-white" />
-                          </button>
+              {filteredItineraries.map((itinerary, index) => {
+                const dynamicStatus = getTripStatus(itinerary);
+                const progress = calculateTripProgress(itinerary);
+                const tripType = getTripTypeLabel(itinerary);
+                
+                return (
+                  <div key={index} className="card group hover:shadow-lg transition-all duration-300">
+                    {/* Card Header */}
+                    <div className="relative h-48 bg-gradient-to-br from-primary-500 to-primary-700 rounded-t-xl">
+                      <div className="absolute inset-0 bg-black/20 rounded-t-xl"></div>
+                      <div className="absolute top-4 left-4 right-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(dynamicStatus)}`}>
+                              {getStatusIcon(dynamicStatus)} {dynamicStatus.replace('_', ' ')}
+                            </span>
+                            <span className="px-2 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs text-white">
+                              {tripType}
+                            </span>
+                          </div>
+                          <div className="flex space-x-1">
+                            <Link
+                              href={`/itineraries/${itinerary._id}`}
+                              className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+                            >
+                              <EyeIcon className="h-4 w-4 text-white" />
+                            </Link>
+                            <Link
+                              href={`/itineraries/${itinerary._id}/edit`}
+                              className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+                            >
+                              <PencilIcon className="h-4 w-4 text-white" />
+                            </Link>
+                            <button
+                              onClick={() => {
+                                setSelectedItinerary(itinerary);
+                                setShowDeleteModal(true);
+                              }}
+                              className="p-2 bg-white/20 rounded-lg hover:bg-red-500/80 transition-colors"
+                            >
+                              <TrashIcon className="h-4 w-4 text-white" />
+                            </button>
+                          </div>
                         </div>
                       </div>
+                      <div className="absolute bottom-4 left-4 right-4">
+                        <h3 className="text-xl font-bold text-white mb-1">
+                          {itinerary.trip_details?.destination}
+                        </h3>
+                        <p className="text-white/80 text-sm">
+                          {calculateDays(itinerary.trip_details?.start_date, itinerary.trip_details?.end_date)} days trip
+                        </p>
+                      </div>
                     </div>
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <h3 className="text-xl font-bold text-white mb-1">
-                        {itinerary.trip_details?.destination}
-                      </h3>
-                      <p className="text-white/80 text-sm">
-                        {calculateDays(itinerary.trip_details?.start_date, itinerary.trip_details?.end_date)} days trip
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Card Body */}
-                  <div className="p-6">
-                    <div className="space-y-4">
-                      {/* Dates */}
-                      <div className="flex items-center space-x-2 text-gray-600">
-                        <CalendarIcon className="h-4 w-4" />
-                        <span className="text-sm">
-                          {formatDate(itinerary.trip_details?.start_date, { month: 'short', day: 'numeric' })} - {formatDate(itinerary.trip_details?.end_date, { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </span>
-                      </div>
-
-                      {/* Budget */}
-                      <div className="flex items-center space-x-2 text-gray-600">
-                        <CurrencyDollarIcon className="h-4 w-4" />
-                        <span className="text-sm">
-                          Budget: {formatCurrency(itinerary.trip_details?.total_budget)}
-                        </span>
-                      </div>
-
-                      {/* Travelers */}
-                      <div className="flex items-center space-x-2 text-gray-600">
-                        <MapIcon className="h-4 w-4" />
-                        <span className="text-sm">
-                          {itinerary.trip_details?.travelers} {itinerary.trip_details?.travelers === 1 ? 'traveler' : 'travelers'}
-                        </span>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div className="pt-2">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs text-gray-600">Trip Progress</span>
-                          <span className="text-xs text-gray-600">
-                            {itinerary.status === 'completed' ? '100%' : 
-                             itinerary.status === 'in_progress' ? '75%' :
-                             itinerary.status === 'confirmed' ? '50%' : '25%'}
+                    {/* Card Body */}
+                    <div className="p-6">
+                      <div className="space-y-4">
+                        {/* Dates */}
+                        <div className="flex items-center space-x-2 text-gray-600">
+                          <CalendarIcon className="h-4 w-4" />
+                          <span className="text-sm">
+                            {formatDate(itinerary.trip_details?.start_date, { month: 'short', day: 'numeric' })} - {formatDate(itinerary.trip_details?.end_date, { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                            style={{
-                              width: itinerary.status === 'completed' ? '100%' : 
-                                     itinerary.status === 'in_progress' ? '75%' :
-                                     itinerary.status === 'confirmed' ? '50%' : '25%'
-                            }}
-                          ></div>
+
+                        {/* Budget */}
+                        <div className="flex items-center space-x-2 text-gray-600">
+                          <CurrencyDollarIcon className="h-4 w-4" />
+                          <span className="text-sm">
+                            Budget: {formatCurrency(itinerary.trip_details?.total_budget)}
+                          </span>
+                        </div>
+
+                        {/* Travelers */}
+                        <div className="flex items-center space-x-2 text-gray-600">
+                          <MapIcon className="h-4 w-4" />
+                          <span className="text-sm">
+                            {itinerary.trip_details?.travelers} {itinerary.trip_details?.travelers === 1 ? 'traveler' : 'travelers'}
+                          </span>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="pt-2">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs text-gray-600">Trip Progress</span>
+                            <span className="text-xs text-gray-600">
+                              {progress.percentage}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${progress.color}`}
+                              style={{ width: `${progress.percentage}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">{progress.label}</p>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Card Footer */}
-                  <div className="px-6 pb-6">
-                    <Link
-                      href={`/itineraries/${itinerary._id}`}
-                      className="w-full btn-outline text-center block py-2 group-hover:bg-primary-600 group-hover:text-white group-hover:border-primary-600 transition-all duration-300"
-                    >
-                      View Details
-                    </Link>
+                    {/* Card Footer */}
+                    <div className="px-6 pb-6">
+                      <Link
+                        href={`/itineraries/${itinerary._id}`}
+                        className="w-full btn-outline text-center block py-2 group-hover:bg-primary-600 group-hover:text-white group-hover:border-primary-600 transition-all duration-300"
+                      >
+                        View Details
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Pagination */}

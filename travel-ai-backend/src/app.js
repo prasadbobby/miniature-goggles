@@ -8,6 +8,7 @@ const itineraryRoutes = require('./routes/itinerary');
 const bookingRoutes = require('./routes/booking');
 const errorHandler = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
+const flightRoutes = require('./routes/flights');
 
 const app = express();
 
@@ -56,6 +57,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/itinerary', itineraryRoutes);
 app.use('/api/booking', bookingRoutes);
+app.use('/api/flights', flightRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

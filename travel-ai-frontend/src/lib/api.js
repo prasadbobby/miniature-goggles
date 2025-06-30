@@ -67,4 +67,10 @@ export const bookingAPI = {
   processPayment: (id, data) => api.post(`/api/booking/${id}/payment`, data),
 };
 
+export const flightAPI = {
+  search: (searchData) => api.post('/api/flights/search', searchData),
+  book: (bookingData) => api.post('/api/flights/book', bookingData),
+  getStatus: (pnr) => api.get(`/api/flights/status/${pnr}`),
+};
+
 export default api;
